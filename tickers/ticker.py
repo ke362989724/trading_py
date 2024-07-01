@@ -4,10 +4,15 @@ import yfinance as yf
 import sys
 sys.path.append("..")
 from database import bulk_insert
+from database import db
+from database import insert_one
+from schedule import schedule_instance
+import pymongo
+import pytz
 
 
 class Tickers:
-    def __init__(self, item):
+    def __init__(self):
         self.save_path = "C:/Users/ke362/Desktop/swing_trade/tickers/ticker_table"
         self.targetPath = "C:/Users/ke362/Desktop/swing_trade/tickers/ticker_table/nasdaqlisted.txt"
         self.max_huck_size = 16 * 1024 * 1024
@@ -90,6 +95,52 @@ class Tickers:
             
             
     def all_ticker_fundamentals(self):
-        test_data = ["AAPL"]
-
+        test_data = self.all_ticker_list
+        for item in test_data:
+            responseData = yf.Ticker(item)
+            responseData_income_stmt = responseData.income_stmt
+            self.loop_out_ticker(responseData_income_stmt, item + "_income_statement")
+            responseData_quarterly_income_stmt = responseData.quarterly_income_stmt
+            self.loop_out_ticker(responseData_quarterly_income_stmt, item + "_quarterly_income_stmt")
+            responseData_balance_sheet = responseData.balance_sheet
+            self.loop_out_ticker(responseData_balance_sheet, item + "_balance_sheet")
+            responseData_quarterly_balance_sheet = responseData.quarterly_balance_sheet
+            self.loop_out_ticker(responseData_quarterly_balance_sheet, item + "_quarterly_balance_sheet")
+            responseData_cash_flow = responseData.cashflow
+            self.loop_out_ticker(responseData_cash_flow, item + "_cash_flow")
+    
+    def loop_out_ticker(self, responseData, target_table_name):
+        tempArray = []
+        for column in responseData.columns:
+            tempObj = {
+                "date": column.to_pydatetime(),
+            }
+            for index, value in responseData[column].items():
+                tempObj[index] = value
+            tempArray.append(tempObj)
+        bulk_insert(tempArray, target_table_name)
         
+    def update_all_ticker_price_history(self):
+        test_data = self.all_ticker_list
+        for item in test_data:
+            try:
+                responseData = yf.Ticker(item).history(period="1d")
+                for key, value in responseData.iterrows():
+                    tempObj = {}
+                    tempObj["open"] = value["Open"].item()
+                    tempObj["high"] = value["High"].item()
+                    tempObj["low"] = value["Low"].item()
+                    tempObj["close"] = value["Close"].item()
+                    tempObj["dividends"] = value["Dividends"].item()
+                    tempObj['date'] = key.to_pydatetime()
+                    dbData = db[item + "_daily_history"].find_one({}, sort=[("date", pymongo.DESCENDING)])
+                    db_date = pytz.utc.localize(dbData["date"]).date()
+                    tempObj_date = tempObj["date"].replace(tzinfo=pytz.utc).date()
+                    if(tempObj_date > db_date):
+                        insert_one(tempObj, item + "_daily_history")
+                        print("Date bigger , data is most updated")
+                    else:
+                        print("Date smaller , data is most updated")
+            except Exception as e:
+                print("error", e)
+            

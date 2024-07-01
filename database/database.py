@@ -37,3 +37,7 @@ class Database:
         
         except Exception as e:
             print(f"An error occurred: {e}")
+    
+    def insert_one(self, data, target_table):
+        inserted_data = self.db[target_table].insert_one(data)
+        print("Inserted Data ID:", inserted_data.inserted_id)
