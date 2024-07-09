@@ -32,15 +32,21 @@ class Technical:
     
     def sector_performance(self):
         ticker_range = eval(os.environ["capital_range"])
-        print("ticker_range", ticker_range)
-        print("all_ticker_list", all_ticker_list)
-        for item in all_ticker_list:
+        tempObj = {}
+        for item in ticker_range:
+            tempObj[item["range_name"]] = 0
+        test_data = ["AAPL"]
+        # test_data = all_ticker_list
+        for item in test_data:
             try:
-                documents_daily_price = find_all(item + "_daily_history")
+                documents_daily_prices = find_all(item + "_daily_history")
                 documents_info = find_all(item + "_info")
+                for item in ticker_range:
+                    if documents_info[0]["marketCap"] >= item["lower"] and documents_info[0]["marketCap"] < item["upper"]:
+                        tempObj[item["range_name"]] += 1
 
             except Exception as e:
                 print("Error in sector_performance", e)
-
+        print("tempObj", tempObj)
     def sector_performance_slope(self):
         pass

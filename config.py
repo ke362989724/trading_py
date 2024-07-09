@@ -1,10 +1,10 @@
 import os
 
 # 
-capital_range = [{"range_name": "small", "lower": 250000000, "upper": 2000000000},
-                 {"range_name": "mid", "lower": 2000000000, "upper": 10000000000},
-                 {"range_name": "large", "lower": 10000000000, "upper": 200000000000},
-                 {"range_name": "mega", "lower": 200000000000, "upper": 20000000000000000}
+capital_range = [{"range_name": "small cap", "lower": 250000000, "upper": 2000000000},
+                 {"range_name": "mid cap", "lower": 2000000000, "upper": 10000000000},
+                 {"range_name": "large cap", "lower": 10000000000, "upper": 200000000000},
+                 {"range_name": "mega cap", "lower": 200000000000, "upper": 20000000000000000}
                 ]
                  
 
