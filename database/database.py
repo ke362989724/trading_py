@@ -3,7 +3,7 @@ import os
 
 class Database:
     def __init__(self):
-        self.client = MongoClient("mongodb://localhost:27017/")
+        self.client = MongoClient(os.environ["DATABASE_URL"])
         self.db = self.client['trading']
         self.max_huck_size = 16 * 1024 * 1024
         
@@ -41,3 +41,7 @@ class Database:
     def insert_one(self, data, target_table):
         inserted_data = self.db[target_table].insert_one(data)
         print("Inserted Data ID:", inserted_data.inserted_id)
+
+
+    def find_all(self, target_table):
+        return self.db[target_table].find()

@@ -13,12 +13,13 @@ import pytz
 
 class Tickers:
     def __init__(self):
-        self.save_path = "C:/Users/ke362/Desktop/swing_trade/tickers/ticker_table"
-        self.targetPath = "C:/Users/ke362/Desktop/swing_trade/tickers/ticker_table/nasdaqlisted.txt"
+        self.save_path = os.environ["SAVE_PATH"]
+        self.targetPath = os.environ["TARGET_PATH"]
         self.max_huck_size = 16 * 1024 * 1024
         self.all_ticker_list = self.all_ticker_list()
-    def get_all_tickersFunc(self):
-        ftp_server = ftplib.FTP("ftp.nasdaqtrader.com")
+        self.split_ticker_into_chunks(100)
+    def get_all_tickersFunc(self) -> int:
+        ftp_server = ftplib.FTP(os.environ["FTP_SERVER"])
         ftp_server.login()
         ftp_server.encoding = "utf-8"
 
@@ -35,8 +36,7 @@ class Tickers:
                 ftp_server.retrbinary(f"RETR {filename}", file.write)
 
         ftp_server.quit()
-        targetPath = "C:/Users/ke362/Desktop/swing_trade/tickers/ticker_table/nasdaqlisted.txt"
-        self.remove_lines(targetPath, 1)
+        self.remove_lines(self.targetPath, 1)
         
         
     def remove_lines(self, targetPath, linesToRemove):
@@ -60,6 +60,12 @@ class Tickers:
         return ticker_list
         
             
+    def split_ticker_into_chunks(self, chunk_size):
+        result_array = []
+        for i in range(0, len(self.all_ticker_list), chunk_size):
+            result_array.append(self.all_ticker_list[i:i+chunk_size])
+        self.splitted_ticker_chunk_list =  result_array
+
     def all_ticker_info(self):
         targetPath = self.targetPath
         data = []       
@@ -67,14 +73,12 @@ class Tickers:
             for item in self.all_ticker_list:
                 try:
                     responseData = yf.Ticker(item).info
-                    print("responseData", responseData)
-                    data.append(responseData)
+                    bulk_insert([responseData], item + "_info")
                 except Exception as e:
                     print("An exception occurred", e)
-        bulk_insert(data, "tickers")
         
     def all_ticker_history(self, period):
-        test_data = self.all_ticker_list
+        test_data = self.s
         for item in test_data:
             tempArray = []
             try:
@@ -121,26 +125,70 @@ class Tickers:
         bulk_insert(tempArray, target_table_name)
         
     def update_all_ticker_price_history(self):
-        test_data = self.all_ticker_list
-        for item in test_data:
-            try:
-                responseData = yf.Ticker(item).history(period="1d")
-                for key, value in responseData.iterrows():
-                    tempObj = {}
-                    tempObj["open"] = value["Open"].item()
-                    tempObj["high"] = value["High"].item()
-                    tempObj["low"] = value["Low"].item()
-                    tempObj["close"] = value["Close"].item()
-                    tempObj["dividends"] = value["Dividends"].item()
-                    tempObj['date'] = key.to_pydatetime()
-                    dbData = db[item + "_daily_history"].find_one({}, sort=[("date", pymongo.DESCENDING)])
-                    db_date = pytz.utc.localize(dbData["date"]).date()
-                    tempObj_date = tempObj["date"].replace(tzinfo=pytz.utc).date()
-                    if(tempObj_date > db_date):
-                        insert_one(tempObj, item + "_daily_history")
-                        print("Date bigger , data is most updated")
-                    else:
-                        print("Date smaller , data is most updated")
-            except Exception as e:
-                print("error", e)
-            
+        test_data = self.splitted_ticker_chunk_list
+        print("test_data", test_data)
+        for item1 in test_data:
+            print(item1, "item1")
+            tickers = yf.Tickers(", ".join(item1))
+            print("tickers", tickers)
+            for item2 in item1:
+                try:
+                    temp_data = tickers.tickers[item2].history(period="5d")
+                    print("temp_data", temp_data)
+                    for key, value in temp_data.iterrows():
+                        tempObj = {}
+                        tempObj["open"] = value["Open"].item()
+                        tempObj["high"] = value["High"].item()
+                        tempObj["low"] = value["Low"].item()
+                        tempObj["close"] = value["Close"].item()
+                        tempObj["dividends"] = value["Dividends"].item()
+                        tempObj['date'] = key.to_pydatetime()
+                        dbData = db[item2 + "_daily_history"].find_one({}, sort=[("date", pymongo.DESCENDING)])
+                        db_date = pytz.utc.localize(dbData["date"]).date()
+                        tempObj_date = tempObj["date"].replace(tzinfo=pytz.utc).date()
+                        if(tempObj_date > db_date):
+                            insert_one(tempObj, item2 + "_daily_history")
+                            print(item2, "new data is inserted")
+                        else:
+                            print(item2, "latest data is inserted")
+                except Exception as e:
+                    print("error", e)
+
+
+    def ticker_price_history(self, ticker, period):
+        spy_ticker = yf.Ticker(ticker)
+        responseData = spy_ticker.history(period=period)
+        tempArray = []
+        try:
+            for key, value in responseData.iterrows():
+                tempObj = {}
+                tempObj["open"] = value["Open"].item()
+                tempObj["high"] = value["High"].item()
+                tempObj["low"] = value["Low"].item()
+                tempObj["close"] = value["Close"].item()
+                tempObj["dividends"] = value["Dividends"].item()
+                tempObj['date'] = key.to_pydatetime()
+                tempArray.append(tempObj)
+        except Exception as e:
+            print("error", e)
+            print("tempArray", tempArray)
+        
+        bulk_insert(tempArray, ticker + "_daily_history")
+
+    
+
+    def sector_list_price_history(self):
+        sector_list = os.environ["sector_list"].split(",")
+        for item in sector_list:
+            responseData = yf.Ticker(item).history(period="5y")
+            tempArray = []
+            for key, value in responseData.iterrows():
+                tempObj = {}
+                tempObj["open"] = value["Open"].item()
+                tempObj["high"] = value["High"].item()
+                tempObj["low"] = value["Low"].item()
+                tempObj["close"] = value["Close"].item()
+                tempObj["dividends"] = value["Dividends"].item()
+                tempObj['date'] = key.to_pydatetime()
+                tempArray.append(tempObj)
+            bulk_insert(tempArray, item + "_daily_history")
