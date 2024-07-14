@@ -18,4 +18,7 @@ from technical import technical_instance
 # technical_instance.ticker_movingAverage("SPY", 50)
 # technical_instance.ticker_movingAverage("SPY", 200)
 
-technical_instance.sector_performance()
+# technical_instance.sector_performance()
+# technical_instance.find_all_sector("industry")
+# technical_instance.find_all_industry()
+technical_instance.sector_performance_slope()

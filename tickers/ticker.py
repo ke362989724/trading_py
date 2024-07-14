@@ -68,14 +68,16 @@ class Tickers:
 
     def all_ticker_info(self):
         targetPath = self.targetPath
-        data = []       
+        resultData= []       
         with open(targetPath, "r") as file:
             for item in self.all_ticker_list:
                 try:
                     responseData = yf.Ticker(item).info
-                    bulk_insert([responseData], item + "_info")
+                    resultData.append(responseData)
                 except Exception as e:
                     print("An exception occurred", e)
+        bulk_insert(resultData,  "all_ticker_info")
+
         
     def all_ticker_history(self, period):
         test_data = self.s
