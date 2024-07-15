@@ -21,4 +21,6 @@ from technical import technical_instance
 # technical_instance.sector_performance()
 # technical_instance.find_all_sector("industry")
 # technical_instance.find_all_industry()
-technical_instance.sector_performance_slope()
+# technical_instance.sector_performance_slope()
+# technical_instance.new_high_each_sector()
+technical_instance.new_high_each_industry()

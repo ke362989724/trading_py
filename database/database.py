@@ -43,5 +43,5 @@ class Database:
         print("Inserted Data ID:", inserted_data.inserted_id)
 
 
-    def find_all(self, target_table):
-        return self.db[target_table].find()
+    def find_all(self, target_table, query, projection):
+        return self.db[target_table].find(query, projection)

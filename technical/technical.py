@@ -23,8 +23,6 @@ class Technical:
             tempObj[ticker_range["range_name"]] = list(result)
         return tempObj
     
-    def classify_by_market_sector(self):
-        pass
     
     def find_all_sector(self):
         projection = {"sector": 1, "industry": 1}
@@ -62,6 +60,25 @@ class Technical:
             documents = db['all_ticker_info'].find(query, projection)
             resultObj[item] = list(documents)
         return resultObj
+    
+    def classify_by_industry(self):
+        all_industry = eval(os.environ["industry_list"])
+        resultObj = {}
+        for key, value in all_industry.items():
+            resultObj[key] = []
+            for item in value:
+                tempObj = {}
+                query = {"industry": item}
+                projection = {"symbol": 1, "_id": 0}
+                documents = db["all_ticker_info"].find(query, projection)
+                list_document = list(documents)
+                tempObj[item] = list_document
+                resultObj[key].append(tempObj)
+        return resultObj
+                
+                
+                
+                
             
 
     def ticker_movingAverage(self, ticker, period):
@@ -126,17 +143,81 @@ class Technical:
             sector_above_average_percent[key] = ticker_that_above_20MA[key] / total_tickers_each_sector[key]
         print("sector_above_average_percent", sector_above_average_percent)
     
+    
+    def new_high_each_sector(self):
+        test_data = {
+            "Technology": [{"symbol": "AAPL"}]
+        }
+
+        # classified_by_sector = test_data
+        classified_by_sector = self.classify_by_sector()
+        total_tickers_each_sector = {}
+        ticker_that_new_high = {}
+        sector_above_average_percent = {}
+        for key, value in classified_by_sector.items():
+            for item in value:
+                try:
+                    df = pd.DataFrame(list(find_all(item["symbol"] + "_daily_history")))
+                    largest_close = df["close"].max()
+                    last_close_value = df["close"].iloc[-1]
+                    if key in total_tickers_each_sector:
+                        total_tickers_each_sector[key] += 1
+                    else:
+                        total_tickers_each_sector[key] = 1
+                    if key in ticker_that_new_high:
+                        if(largest_close == last_close_value):
+                            ticker_that_new_high[key] += 1
+                    else:
+                        ticker_that_new_high[key] = 1
+                    
+                    
+                except Exception as e:
+                    print("Exception", e)
+        print("total_tickers_each_sector", total_tickers_each_sector)
+        print("ticker_that_new_high", ticker_that_new_high)
+        for key, value in total_tickers_each_sector.items():
+            sector_above_average_percent[key] = ticker_that_new_high[key] / total_tickers_each_sector[key]
+        print("sector_above_average_percent", sector_above_average_percent)
+
+    def new_high_each_industry(self):
+        test_data = {
+            "Technology": [{'Consumer Electronics': [{'symbol': "AAPL"}]}]
+        }
+        industry_list = self.classify_by_industry()
+        # industry_list = test_data
+        resultObj = {}
+        for key1, value1 in industry_list.items():
+            resultObj[key1] = {}
+            for item1 in value1:
+                for key2, value2 in item1.items():
+                    resultObj[key1][key2] = 0
+                    for item2 in value2:
+                        try:
+                            projection = {"date": 1, "_id": 0, "close": 1}
+                            query = {"marketCap": {"$gt": 2000000000}}
+                            df = pd.DataFrame(list(find_all(item2["symbol"] + "_daily_history", {}, projection)))
+                            largest_close = df["close"].max()
+                            last_close_value = df["close"].iloc[-1]
+                            if key2 in resultObj[key1]:
+                                if(largest_close == last_close_value):
+                                    resultObj[key1][key2] += 1
+                            else:
+                                resultObj[key1][key2] = 1
+                        except Exception as e:
+                            print("exception", e)
+        print("resultObj", resultObj)
+    
+    
     def find_the_slope(self):
         pass
         
     
     def sector_performance_slope(self):
-        print('Hello World')
         test_tickers = ['AAPL']
         for ticker in test_tickers:
             document = find_all(ticker + "_daily_history")
             df = pd.DataFrame(document)
             df["slope"] = df["close"] - df["close"].shift(1)
-        print('df', df.tail())
+            print("dataframe", df)
                        
                 
