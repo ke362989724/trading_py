@@ -7,6 +7,7 @@ sys.path.append("..")
 from tickers import all_ticker_list
 from database import bulk_insert
 from database import db
+from datetime import datetime
 
 
 class Technical:
@@ -75,10 +76,12 @@ class Technical:
                 tempObj[item] = list_document
                 resultObj[key].append(tempObj)
         return resultObj
+    
+
                 
-                
-                
-                
+
+
+               
             
 
     def ticker_movingAverage(self, ticker, period):
@@ -93,9 +96,25 @@ class Technical:
         except Exception as e:
             print("Error in ticker_movingAverage", e)
 
+    def number_moving_sma_average(self, data, new_field_name, target_field, period):
+        try:
+            data[new_field_name] = data[target_field].rolling(window=period).mean()
+            data.dropna(inplace=True)
+            return data
+        except Exception as e:
+            print("Error in number_moving_sma_average", e)
+
+
+    def number_moving_ewm_average(self, data, new_field_name, target_field, period):
+        try:
+            data[new_field_name] = data[target_field].ewm(span=period, adjust=False).mean()
+            data.dropna(inplace=True)
+            return data
+        except Exception as e:
+            print("Error in number_moving_sma_average", e)
+
     def compareTwoAverageLine(self, first_moving_average, second_moving_average):
         merged_df = first_moving_average.merge(second_moving_average, on="date", how="inner")
-        print(merged_df.columns.tolist())
         plt.plot(merged_df["date"], merged_df["SMA20"], label="SMA 20", color="blue")
         plt.plot(merged_df["date"], merged_df["SMA50"], label="SMA 50", color="red")
         plt.legend()
@@ -110,9 +129,6 @@ class Technical:
         
     
     def sector_performance(self):
-        test_data = {
-            "Technology": [{"symbol": "AAPL"}]
-        }
         
         classified_by_sector = self.classify_by_sector()
         # classified_by_sector = test_data
@@ -142,13 +158,57 @@ class Technical:
         for key, value in total_tickers_each_sector.items():
             sector_above_average_percent[key] = ticker_that_above_20MA[key] / total_tickers_each_sector[key]
         print("sector_above_average_percent", sector_above_average_percent)
+
+    def new_high_each_sector_chart(self):
+        sector_list = eval(os.environ["sector_list"])
+        sector_list_data = []
+        for sector in sector_list:
+            try:
+                query = {"sector": sector}
+                projection = {}
+                documents = db['sector_new_high'].find(query, projection).sort("date", 1)
+                ticker_list = list(documents)
+                df = pd.DataFrame(ticker_list)
+                df["date"] = pd.to_datetime(df["date"])
+                df.set_index("date", inplace=True)
+                self.number_moving_sma_average(df, "SMA20", "percent", 20)
+                self.number_moving_sma_average(df, "SMA50", "percent", 50)
+                self.number_moving_ewm_average(df, "EMA20", "percent", 20)
+                self.number_moving_ewm_average(df, "EMA50", "percent", 50)
+                # plt.plot(df.index, df["SMA50"], label="SMA50")
+                # plt.plot(df.index, df["SMA20"], label="SMA20")
+                plt.plot(df.index, df["EMA50"], label="EMA50")
+                plt.plot(df.index, df["EMA20"], label="EMA20")
+                plt.title(sector)
+                plt.xlabel("Date")
+                plt.ylabel("Moving Average")
+                plt.legend()
+                plt.show()
+                sector_list_data.append({"name":sector, "data":df})
+            except Exception as e:
+                print("Exception", e)
+        self.strongest_performance_sector(sector_list_data, 5)
+
+    def strongest_performance_sector(self, df_list, sector_number):
+        strongest_sector = []
+        weakest_performance = 0
+        for value in df_list:
+            tail_data = value["data"].iloc[-1]
+            strongest_sector.append({"sector": value["name"], "percent": tail_data["percent"]})
+            weakest_performance = tail_data["percent"]
+            # if len(strongest_sector) == sector_number:
+            #     break
+        print("strongest_sector", strongest_sector)
+        
     
     
-    def new_high_each_sector(self):
+    def new_high_each_sector(self, date):
         test_data = {
             "Technology": [{"symbol": "AAPL"}]
         }
 
+
+        # Convert the date object to the desired format
         # classified_by_sector = test_data
         classified_by_sector = self.classify_by_sector()
         total_tickers_each_sector = {}
@@ -156,8 +216,15 @@ class Technical:
         sector_above_average_percent = {}
         for key, value in classified_by_sector.items():
             for item in value:
+                print("item", item)
                 try:
-                    df = pd.DataFrame(list(find_all(item["symbol"] + "_daily_history")))
+                    projection = {"date": 1, "_id": 0, "close": 1, "high": 1}
+                    query = {"date": {"$lte": date}}
+                    week_day = 5
+                    week_number =50
+                    limit= week_day * week_number
+                    df = pd.DataFrame(list(db[item["symbol"] + "_daily_history"].find(query, projection).sort("date", -1).limit(limit)))
+                    print('df', df)
                     largest_close = df["close"].max()
                     last_close_value = df["close"].iloc[-1]
                     if key in total_tickers_each_sector:
@@ -169,15 +236,14 @@ class Technical:
                             ticker_that_new_high[key] += 1
                     else:
                         ticker_that_new_high[key] = 1
-                    
-                    
                 except Exception as e:
                     print("Exception", e)
-        print("total_tickers_each_sector", total_tickers_each_sector)
-        print("ticker_that_new_high", ticker_that_new_high)
+        last_date = df["date"].iloc[0]
+        save_db_data = []
         for key, value in total_tickers_each_sector.items():
             sector_above_average_percent[key] = ticker_that_new_high[key] / total_tickers_each_sector[key]
-        print("sector_above_average_percent", sector_above_average_percent)
+            save_db_data.append({"sector": key, "new_high_number": ticker_that_new_high[key], "percent": sector_above_average_percent[key] * 100, "date": last_date})
+        bulk_insert(save_db_data, "sector_new_high")
 
     def new_high_each_industry(self):
         test_data = {
@@ -193,10 +259,13 @@ class Technical:
                     resultObj[key1][key2] = 0
                     for item2 in value2:
                         try:
-                            projection = {"date": 1, "_id": 0, "close": 1}
+                            projection = {"date": 1, "_id": 0, "close": 1, "high": 1}
                             query = {"marketCap": {"$gt": 2000000000}}
-                            df = pd.DataFrame(list(find_all(item2["symbol"] + "_daily_history", {}, projection)))
-                            largest_close = df["close"].max()
+                            week_day = 5
+                            week_number =50
+                            limit= week_day * week_number
+                            df = pd.DataFrame(list(db[item2["symbol"] + "_daily_history"].find(query, projection).sort("date", -1).limit(limit)))
+                            largest_close = df["high"].max()
                             last_close_value = df["close"].iloc[-1]
                             if key2 in resultObj[key1]:
                                 if(largest_close == last_close_value):
@@ -220,4 +289,5 @@ class Technical:
             df["slope"] = df["close"] - df["close"].shift(1)
             print("dataframe", df)
                        
-                
+
+    

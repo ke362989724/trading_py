@@ -73,6 +73,7 @@ class Tickers:
             for item in self.all_ticker_list:
                 try:
                     responseData = yf.Ticker(item).info
+                    print("responseData", responseData)
                     resultData.append(responseData)
                 except Exception as e:
                     print("An exception occurred", e)
@@ -128,15 +129,11 @@ class Tickers:
         
     def update_all_ticker_price_history(self):
         test_data = self.splitted_ticker_chunk_list
-        print("test_data", test_data)
         for item1 in test_data:
-            print(item1, "item1")
             tickers = yf.Tickers(", ".join(item1))
-            print("tickers", tickers)
             for item2 in item1:
                 try:
                     temp_data = tickers.tickers[item2].history(period="5d")
-                    print("temp_data", temp_data)
                     for key, value in temp_data.iterrows():
                         tempObj = {}
                         tempObj["open"] = value["Open"].item()

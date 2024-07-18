@@ -4,6 +4,7 @@ from tickers import tickers_instance
 from database import database
 import pymongo
 from technical import technical_instance
+from datetime import datetime, timedelta
 
 
 # tickers_instance.get_all_tickersFunc()
@@ -22,5 +23,11 @@ from technical import technical_instance
 # technical_instance.find_all_sector("industry")
 # technical_instance.find_all_industry()
 # technical_instance.sector_performance_slope()
-# technical_instance.new_high_each_sector()
-technical_instance.new_high_each_industry()
+# current_date = datetime.now()
+# for i in range(50):
+#     current_date = current_date - timedelta(days=1)
+technical_instance.new_high_each_sector(datetime.now())
+# technical_instance.new_high_each_industry()
+# technical_instance.new_high_each_sector_chart()
+
+
