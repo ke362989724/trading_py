@@ -9,6 +9,7 @@ from database import insert_one
 from schedule import schedule_instance
 import pymongo
 import pytz
+import time
 
 
 class Tickers:
@@ -81,10 +82,12 @@ class Tickers:
 
         
     def all_ticker_history(self, period):
-        test_data = self.s
+        test_data = self.all_ticker_list
+        sleepTime = 0
         for item in test_data:
             tempArray = []
             try:
+                time.sleep(sleepTime)
                 responseData = yf.Ticker(item).history(period=period)
                 for key, value in responseData.iterrows():
                     tempObj = {}
@@ -95,26 +98,41 @@ class Tickers:
                     tempObj["dividends"] = value["Dividends"].item()
                     tempObj['date'] = key.to_pydatetime()
                     tempArray.append(tempObj)
+                sleepTime = 0
             except Exception as e:
+                sleepTime = sleepTime + 1
                 print("error", e)
+                if sleepTime < 10000:
+                    raise
             print("tempArray", tempArray)
             bulk_insert(tempArray, item + "_daily_history")
             
             
     def all_ticker_fundamentals(self):
         test_data = self.all_ticker_list
+        sleepTime = 0
         for item in test_data:
-            responseData = yf.Ticker(item)
-            responseData_income_stmt = responseData.income_stmt
-            self.loop_out_ticker(responseData_income_stmt, item + "_income_statement")
-            responseData_quarterly_income_stmt = responseData.quarterly_income_stmt
-            self.loop_out_ticker(responseData_quarterly_income_stmt, item + "_quarterly_income_stmt")
-            responseData_balance_sheet = responseData.balance_sheet
-            self.loop_out_ticker(responseData_balance_sheet, item + "_balance_sheet")
-            responseData_quarterly_balance_sheet = responseData.quarterly_balance_sheet
-            self.loop_out_ticker(responseData_quarterly_balance_sheet, item + "_quarterly_balance_sheet")
-            responseData_cash_flow = responseData.cashflow
-            self.loop_out_ticker(responseData_cash_flow, item + "_cash_flow")
+            try:
+                time.sleep(sleepTime)
+                responseData = yf.Ticker(item)
+                print("responseData", responseData)
+                responseData_income_stmt = responseData.income_stmt
+                self.loop_out_ticker(responseData_income_stmt, item + "_income_statement")
+                responseData_quarterly_income_stmt = responseData.quarterly_income_stmt
+                self.loop_out_ticker(responseData_quarterly_income_stmt, item + "_quarterly_income_stmt")
+                responseData_balance_sheet = responseData.balance_sheet
+                self.loop_out_ticker(responseData_balance_sheet, item + "_balance_sheet")
+                responseData_quarterly_balance_sheet = responseData.quarterly_balance_sheet
+                self.loop_out_ticker(responseData_quarterly_balance_sheet, item + "_quarterly_balance_sheet")
+                responseData_cash_flow = responseData.cashflow
+                self.loop_out_ticker(responseData_cash_flow, item + "_cash_flow")
+                sleepTime = 0
+            except Exception as e:
+                    sleepTime = sleepTime + 1
+                    if sleepTime < 10000:
+                        raise
+
+            
     
     def loop_out_ticker(self, responseData, target_table_name):
         tempArray = []

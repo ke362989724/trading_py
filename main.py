@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 # tickers_instance.get_all_tickersFunc()
 # tickers_instance.all_ticker_history("5y")
-# tickers_instance.all_ticker_fundamentals()
+tickers_instance.all_ticker_fundamentals()
 # tickers_instance.update_all_ticker_price_history()
 # tickers_instance.spy_price_history()
 # loop and print out the split_list
@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 # current_date = datetime.now()
 # for i in range(50):
 #     current_date = current_date - timedelta(days=1)
-technical_instance.new_high_each_sector(datetime.now())
+# technical_instance.new_high_each_sector(datetime.now())
 # technical_instance.new_high_each_industry()
 # technical_instance.new_high_each_sector_chart()
 
